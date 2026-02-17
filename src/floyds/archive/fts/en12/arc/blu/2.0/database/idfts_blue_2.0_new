@@ -1,0 +1,31 @@
+# Thu 19:51:12 19-Dec-2024
+begin	identify fts_blue_2.0_new - Ap 1
+	id	 fts_blue_2.0_new
+	task	identify
+	image	 fts_blue_2.0_new - Ap 1
+	aperture	1
+	aplow	49.64
+	aphigh	59.64
+	units	Angstroms
+	features	5
+	        227.10 3650.41577   3650.158   7.0 1 1 Hg
+	        484.35 4046.38127   4046.565   7.0 1 1 Hg
+	        504.74  4077.7521   4077.837   7.0 1 1 Hg
+	        686.98 4358.25394   4358.335   7.0 1 1 Hg
+	       1403.32 5460.84192    5460.75   7.0 1 1 Hg
+	function legendre
+	order 2
+	sample *
+	naverage 1
+	niterate 0
+	low_reject 3.
+	high_reject 3.
+	grow 0.
+	coefficients	6
+		2.
+		2.
+		227.0992126464844
+		1403.31689453125
+		4555.628842453965
+		905.2130739882742
+
