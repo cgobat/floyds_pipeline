@@ -842,7 +842,7 @@ def floydsspecreduction(files, _interactive, _dobias, _doflat, _listflat, _listb
     iraf.longslit(_doprint=0)
     iraf.specred(_doprint=0)
     toforget = ['ccdred.flatcombine', 'ccdred.zerocombine', 'ccdproc', 'specred.apall', 'longslit.identify',
-                'longslit.reidentify',
+                'longslit.reidentify','imutil.hedit',
                 'specred.standard', 'longslit.fitcoords', 'specred.transform', 'specred.response']
     for t in toforget: iraf.unlearn(t)
     iraf.longslit.dispaxi = 2
@@ -882,7 +882,6 @@ def floydsspecreduction(files, _interactive, _dobias, _doflat, _listflat, _listb
             _naxis1 = 511
         else:
             _naxis1 = 512
-
     _overscan = '[2049:' + str(_naxis1) + ',1:' + str(_naxis2) + ']'
     #####
     # had code new trimming for FTS 2024-12-01  #
@@ -968,12 +967,10 @@ def floydsspecreduction(files, _interactive, _dobias, _doflat, _listflat, _listb
                                        epoch='', observa=_observatory[_tel])
                     iraf.specred.setjd(img, date='DATE-OBS', time='UTSTART', exposure='EXPTIME', ra='ra', dec='dec',
                                        epoch='', observa=_observatory[_tel])
-
                 aaa = iraf.hedit(bimg, 'CCDSEC', delete='yes', update='yes', verify='no', Stdout=1)
                 aaa = iraf.hedit(bimg, 'TRIMSEC', delete='yes', update='yes', verify='no', Stdout=1)
                 aaa = iraf.hedit(rimg, 'CCDSEC', delete='yes', update='yes', verify='no', Stdout=1)
                 aaa = iraf.hedit(rimg, 'TRIMSEC', delete='yes', update='yes', verify='no', Stdout=1)
-
                 iraf.ccdproc(bimg, output='', overscan="yes", trim="yes", zerocor='no', flatcor='no', zero='',
                              ccdtype='',
                              fixpix='no', trimsec=_biassecblu, biassec=_overscan, readaxi='line', Stdout=1)
