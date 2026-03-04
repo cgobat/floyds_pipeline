@@ -10,6 +10,7 @@ import time
 import numpy as np
 from pyraf import iraf
 from astropy.io import fits
+from astropy.time import Time
 
 import floyds
 
@@ -1046,10 +1047,8 @@ def peakdet(v, delta, x=None):
 ######################################################################
 
 def mjdtoday():
-  today = datetime.datetime.utcnow()
-  mjd0  = datetime.datetime(1858,11,17)
-  mjd = (today - mjd0).days
-  return mjd
+  now = Time.now()
+  return now.utc.mjd
 
 def to_safe_filename(unsafe_string):
     valid_filename_characters = "-_.(){letters}{numbers}".format(letters=string.ascii_letters, numbers=string.digits)
