@@ -1,8 +1,6 @@
 from distutils.core import setup
 from distutils.command.install import INSTALL_SCHEMES
-from os import sys, path
-import os,shutil,re
-from glob import glob
+import sys
 for scheme in INSTALL_SCHEMES.values():
     scheme['data'] = scheme['purelib']
 
