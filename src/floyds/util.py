@@ -1,9 +1,21 @@
+
+import datetime
+import glob
+import os
+import re
+import string
 import sys
+import time
+
+import numpy as np
+from pyraf import iraf
+from astropy.io import fits
+
+import floyds
+
 pyversion = sys.version_info[0]
 
 def sortbyJD(lista):
-    from astropy.io import fits
-    from numpy import array
 
     JDlist = []
     for img in lista:
@@ -12,8 +24,8 @@ def sortbyJD(lista):
             JDlist.append(hdr['MJD'])
         else:
             JDlist.append(hdr['MJD-OBS'])
-    lista = array(lista)
-    JDlist = array(JDlist)
+    lista = np.array(lista)
+    JDlist = np.array(JDlist)
     inds = JDlist.argsort()
     sortedlista = lista[inds]
     return list(sortedlista)
@@ -28,7 +40,6 @@ def ask(question):
 
 # ###########################################################
 def ReadAscii2(ascifile):
-    import string
 
     f = open(ascifile, 'r')
     ss = f.readlines()
@@ -43,9 +54,6 @@ def ReadAscii2(ascifile):
 
 #########################################################################
 def readspectrum(img):
-    from numpy import array
-    from astropy.io import fits
-    import string
 
     fl = ''
     lam = ''
@@ -74,13 +82,13 @@ def readspectrum(img):
             cdelt1 = head['cdelt1']
         except:
             cdelt1 = head['cd1_1']
-        pix = array(range(1, naxis1 + 1, 1))
-        pix = array(range(1, len(fl) + 1, 1))
+        pix = np.array(range(1, naxis1 + 1, 1))
+        pix = np.array(range(1, len(fl) + 1, 1))
         lam = (pix - crpix1) * cdelt1 + crval1
     except:
         try:
             WAT = head['WAT2_001']
-            pix = array(range(1, naxis1 + 1, 1))
+            pix = np.array(range(1, naxis1 + 1, 1))
             crpix1 = str.split(str.split(WAT, '"')[1])[0]
             crval1 = str.split(str.split(WAT, '"')[1])[3]
             cdelt1 = str.split(str.split(WAT, '"')[1])[4]
@@ -93,9 +101,6 @@ def readspectrum(img):
 ###########################################################################
 
 def readlist(listfile):
-#    from floyds.util import correctcard
-    import string, os, sys, re, glob
-    from astropy.io import fits
 
     if '*' in listfile:
         imglist = glob.glob(listfile)
@@ -134,7 +139,6 @@ def readlist(listfile):
 
 ##############################################################################
 def delete(listfile):
-    import os, string, re, glob
 
     if listfile[0] == '@':
         ff = open(listfile[1:])
@@ -162,7 +166,6 @@ def delete(listfile):
 
 ###############################################################
 def readhdr(img):
-    from astropy.io import fits
     try:
         hdr = fits.getheader(img)
     except Exception as e:
@@ -171,76 +174,65 @@ def readhdr(img):
     return hdr
 
 def readkey3(hdr, keyword):
-    import re, string, sys
 
     try:
         _instrume = hdr.get('INSTRUME').lower()
     except:
         _instrume = 'none'
-    if _instrume in ['en05', 'en06', 'en12']:
-        if not hdr.get('HDRVER'):
-            useful_keys = {'object': 'OBJECT',
-                           'date-obs': 'DATE-OBS',
-                           'ut': 'UTSTART',
-                           'obstype': 'OBSTYPE',
-                           'RA': 'RA',
-                           'DEC': 'DEC',
-                           'CAT-RA': 'CAT-RA',
-                           'CAT-DEC': 'CAT-DEC',
-                           'datamin': -100,
-                           'datamax': 60000,
-                           'grpid': 'BLKUID',
-                           'exptime': 'EXPTIME',
-                           'JD': 'MJD',
-                           'MJD': 'MJD',
-                           'lamp': 'LMP_ID',
-                           'gain': 'GAIN',
-                           'instrume': 'INSTRUME',
-                           'grism': 'GRISM',
-                           'ron': 'READNOIS',
-                           'airmass': 'AIRMASS',
-                           'slit': 'APERWID',
-                           'telescop': 'TELESCOP'}
-        else:
-            useful_keys = {'object': 'OBJECT',
-                           'date-obs': 'DATE-OBS',
-                           'ut': 'UTSTART',
-                           'obstype': 'OBSTYPE',
-                           'RA': 'RA',
-                           'DEC': 'DEC',
-                           'CAT-RA': 'CAT-RA',
-                           'CAT-DEC': 'CAT-DEC',
-                           'datamin': -100,
-                           'datamax': 60000,
-                           'grpid': 'BLKUID',
-                           'exptime': 'EXPTIME',
-                           'JD': 'MJD-OBS',
-                           'MJD': 'MJD-OBS',
-                           'lamp': 'LMP1ID',
-                           'gain': 'GAIN',
-                           'instrume': 'INSTRUME',
-                           'grism': 'GRISM',
-                           'ron': 'RDNOISE',
-                           'airmass': 'AIRMASS',
-                           'slit': 'APERWID',
-                           'telescop': 'TELESCOP'}
-    else:
-        useful_keys = {'object': 'OBJECT',
+    useful_keys = {'object': 'OBJECT',
                        'date-obs': 'DATE-OBS'}
+    if _instrume in ['en05', 'en06', 'en12']:
+        useful_keys.update(
+            {'ut': 'UTSTART',
+             'obstype': 'OBSTYPE',
+             'RA': 'RA',
+             'DEC': 'DEC',
+             'CAT-RA': 'CAT-RA',
+             'CAT-DEC': 'CAT-DEC',
+             'datamin': -100,
+             'datamax': 60000,
+             'grpid': 'BLKUID',
+             'exptime': 'EXPTIME'
+             })
+        if not hdr.get('HDRVER'):
+            useful_keys.update(
+                {'JD': 'MJD',
+                 'MJD': 'MJD',
+                 'lamp': 'LMP_ID',
+                 'gain': 'GAIN',
+                 'instrume': 'INSTRUME',
+                 'grism': 'GRISM',
+                 'ron': 'READNOIS',
+                 'airmass': 'AIRMASS',
+                 'slit': 'APERWID',
+                 'telescop': 'TELESCOP'
+                 })
+        else:
+            useful_keys.update(
+                {'JD': 'MJD-OBS',
+                 'MJD': 'MJD-OBS',
+                 'lamp': 'LMP1ID',
+                 'gain': 'GAIN',
+                 'instrume': 'INSTRUME',
+                 'grism': 'GRISM',
+                 'ron': 'RDNOISE',
+                 'airmass': 'AIRMASS',
+                 'slit': 'APERWID',
+                 'telescop': 'TELESCOP'
+                 })
+
     if keyword in useful_keys:
         if type(useful_keys[keyword]) == float:
             value = useful_keys[keyword]
         else:
             value = hdr.get(useful_keys[keyword])
             if keyword == 'date-obs':
-                import string, re
 
                 try:
                     value = re.sub('-', '', str.split(value, 'T')[0])
                 except:
                     pass
             elif keyword == 'ut':
-                import string, re
 
                 try:
                     value = str.split(value, 'T')[1]
@@ -255,7 +247,6 @@ def readkey3(hdr, keyword):
             elif keyword == 'grpid':
                 value = '_'.join([hdr.get('BLKUID'), hdr.get('OBJECT')])
             elif keyword == 'RA' or keyword == 'CAT-RA':
-                import string, re
 
                 value0 = str.split(value, ':')
                 try:
@@ -263,12 +254,11 @@ def readkey3(hdr, keyword):
                 except:
                     value = 0
             elif keyword == 'DEC' or keyword == 'CAT-DEC':
-                import string, re
 
                 value0 = str.split(value, ':')
                 try:
                     if '-' in str(value0[0]):
-                        value = ((-1) * (abs(float(value0[0])) + ((float(value0[1]) + (float(value0[2]) / 60.)) / 60.)))
+                        value = ((-1) * (np.abs(float(value0[0])) + ((float(value0[1]) + (float(value0[2]) / 60.)) / 60.)))
                     else:
                         value = (float(value0[0]) + ((float(value0[1]) + (float(value0[2]) / 60.)) / 60.))
                 except:
@@ -289,7 +279,6 @@ def readkey3(hdr, keyword):
                 value = re.sub(' ', '', value)
     else:
         if keyword == 'date-night':
-            import datetime
 
             _date = readkey3(hdr, 'DATE-OBS')
             a = (datetime.datetime.strptime(str.split(_date, '.')[0], "20%y-%m-%dT%H:%M:%S") - datetime.timedelta(
@@ -322,7 +311,6 @@ def writeinthelog(text, logfile):
     f.close()
 
 def updateheader(filename, dimension, headerdict):
-    from astropy.io import fits
     tupledict = {key: tuple(value) for key, value in headerdict.items()}
     try:
         hdulist = fits.open(filename, mode='update')
@@ -336,7 +324,6 @@ def updateheader(filename, dimension, headerdict):
 #################################################################################################
 def display_image(img, frame, _z1, _z2, scale, _xcen=0.5, _ycen=0.5, _xsize=1, _ysize=1, _erase='yes'):
     goon = 'True'
-    import glob, subprocess, os, time
 
     ds9 = subprocess.Popen("ps -U" + str(os.getuid()) + "|grep -v grep | grep ds9", shell=True,
                            stdout=subprocess.PIPE).stdout.readlines()
@@ -345,11 +332,9 @@ def display_image(img, frame, _z1, _z2, scale, _xcen=0.5, _ycen=0.5, _xsize=1, _
         time.sleep(3)
 
     if glob.glob(img):
-        from pyraf import iraf
 
         iraf.images(_doprint=0)
         iraf.tv(_doprint=0)
-        import string, os
 
         if _z2:
             try:
@@ -408,10 +393,6 @@ def display_image(img, frame, _z1, _z2, scale, _xcen=0.5, _ycen=0.5, _xsize=1, _
 
 #############################################################################
 def searchatmo(img, listatmo):
-    from floyds.util import readhdr, readkey3
-    import floyds
-    import glob, re
-    from numpy import argmin, abs
 
     hdr = floyds.util.readhdr(img)
     JD = readkey3(hdr, 'JD')
@@ -435,9 +416,9 @@ def searchatmo(img, listatmo):
             #           slit1=readkey3(hdra,'slit')
             if grism0 == grism1:
                 goodlist.append(atmo)
-                distance.append(abs(JD - JDarc))
+                distance.append(np.abs(JD - JDarc))
         if len(distance) >= 1:
-            atmofile = goodlist[argmin(distance)]
+            atmofile = goodlist[np.argmin(distance)]
         else:
             atmofile = ''
     else:
@@ -447,11 +428,6 @@ def searchatmo(img, listatmo):
 
 ###########################################################################
 def searcharc(img, listarc):
-    from floyds.util import readhdr, readkey3
-    import floyds
-    import glob, re
-    from numpy import argmin, abs
-    import datetime
 
     hdr = floyds.util.readhdr(img)
     JD = readkey3(hdr, 'JD')
@@ -488,9 +464,9 @@ def searcharc(img, listarc):
             slit1 = readkey3(hdra, 'slit')
             if slit0 == slit1 and grism0 == grism1:
                 goodlist.append(arc)
-                distance.append(abs(JD - JDarc))
+                distance.append(np.abs(JD - JDarc))
         if len(distance) >= 1:
-            arcfile = goodlist[argmin(distance)]
+            arcfile = goodlist[np.argmin(distance)]
         else:
             arcfile = ''
     else:
@@ -500,10 +476,6 @@ def searcharc(img, listarc):
 
 ###########################################################################
 def searchsens(img, listsens):
-    from floyds.util import readhdr, readkey3
-    import floyds
-    import glob, re
-    from numpy import argmin, abs
 
     hdr = readhdr(img)
     if 'MJD' in hdr:
@@ -533,9 +505,9 @@ def searchsens(img, listsens):
             grism1 = readkey3(hdrs, 'grism') if readkey3(hdrs, 'grism') else readkey3(hdrs, 'GRISM')
             if grism0 == grism1:
                 goodlist.append(sens)
-                distance.append(abs(JD - JDsens))
+                distance.append(np.abs(JD - JDsens))
         if len(distance) >= 1:
-            sensfile = goodlist[argmin(distance)]
+            sensfile = goodlist[np.argmin(distance)]
         else:
             sensfile = ''
     else:
@@ -545,10 +517,6 @@ def searchsens(img, listsens):
 
 ###########################################################################
 def searchflat(img, listflat):
-    from floyds.util import readhdr, readkey3
-    import floyds
-    import glob, re
-    from numpy import argmin, abs
 
     hdr = readhdr(img)
     JD = readkey3(hdr, 'JD')
@@ -570,9 +538,9 @@ def searchflat(img, listflat):
             filter1 = readkey3(hdrf, 'filter')
             if filter0 == filter1:
                 goodlist.append(flat)
-                distance.append(abs(JD - JDflat))
+                distance.append(np.abs(JD - JDflat))
         if len(distance) >= 1:
-            flatfile = goodlist[argmin(distance)]
+            flatfile = goodlist[np.argmin(distance)]
         else:
             flatfile = ''
     else:
@@ -582,9 +550,6 @@ def searchflat(img, listflat):
 
 ###########################################################################
 def readstandard(standardfile):
-    import floyds
-    from numpy import array, abs
-    import string, os
 
     if os.path.isfile(standardfile):
         listastandard = standardfile
@@ -604,14 +569,14 @@ def readstandard(standardfile):
             _dec = str.split(str.split(i)[2], ':')
             ra.append((float(_ra[0]) + ((float(_ra[1]) + (float(_ra[2]) / 60.)) / 60.)) * 15)
             if '-' in str(_dec[0]):
-                dec.append((-1) * (abs(float(_dec[0])) + ((float(_dec[1]) + (float(_dec[2]) / 60.)) / 60.)))
+                dec.append((-1) * (np.abs(float(_dec[0])) + ((float(_dec[1]) + (float(_dec[2]) / 60.)) / 60.)))
             else:
                 dec.append(float(_dec[0]) + ((float(_dec[1]) + (float(_dec[2]) / 60.)) / 60.))
             try:
                 magnitude.append(str.split(i)[3])
             except:
                 magnitude.append(999)
-    return array(star), array(ra), array(dec), array(magnitude)
+    return np.array(star), np.array(ra), np.array(dec), np.array(magnitude)
 
 ###########################################################################
 def pval(_xx, p):
@@ -626,8 +591,6 @@ def residual(p, y, x):
 
 #########################################################################
 def defsex(namefile):
-    import floyds
-    import string, re, os
 
     sexfile = floyds.__path__[0] + '/standard/sex/default.sex'
     f = open(sexfile, 'r')
@@ -649,8 +612,6 @@ def defsex(namefile):
 
 ############################################################
 def defswarp(namefile, imgname, _combine, gain=''):
-    import floyds
-    import string, re, os
 
     if _combine.lower() in ['median']:
         _combine = 'MEDIAN'
@@ -684,9 +645,6 @@ def defswarp(namefile, imgname, _combine, gain=''):
 
 #################################################################################
 def airmass(img, overwrite=True, _observatory='lasilla'):
-    import floyds
-    from floyds.util import readhdr, readkey3, delete
-    from pyraf import iraf
 
     iraf.astutil(_doprint=0)
     hdr = readhdr(img)
@@ -740,16 +698,12 @@ def dvex():
 #################################################################################################################
 
 def phase3header(img):
-    import floyds
-    import string
-    from floyds.util import readhdr, readkey3
     from numpy import max, min, isfinite
-    from astropy.io import fits
 
     img_data = fits.open(img)[0].data
     hdr = readhdr(img)
-    hedvec0 = {'DATAMIN': [float(min(img_data[isfinite(img_data)])), ''],
-               'DATAMAX': [float(max(img_data[isfinite(img_data)])), ''],
+    hedvec0 = {'DATAMIN': [float(np.min(img_data[np.isfinite(img_data)])), ''],
+               'DATAMAX': [float(np.max(img_data[np.isfinite(img_data)])), ''],
                'ORIGIN': ['ESO', 'European Southern Observatory'],
                'PROCSOFT': ['floyds_' + str(floyds.__version__), 'pipeline version']}
     if readkey3(hdr, 'filter'):
@@ -767,9 +721,6 @@ def phase3header(img):
 
 #########################################################################################
 def name_duplicate(img, nome, ext):  ###########################
-    import re, string, os, glob
-    import floyds
-    from floyds.util import readhdr, readkey3, delete
 
     dimg = readkey3(readhdr(img), 'DATE-OBS')
     listafile = glob.glob(nome + '_?' + ext + '.fits') + glob.glob(nome + '_??' + ext + '.fits')
@@ -791,24 +742,20 @@ def name_duplicate(img, nome, ext):  ###########################
 
 ###############################################################################
 def correctobject(img, coordinatefile):
-    import os, re, sys, string
-    from numpy import arccos, sin, cos, pi, argmin
-    import floyds
-    from floyds.util import readstandard, readhdr, readkey3
 
-    scal = pi / 180.
+    scal = np.pi / 180.
     std, rastd, decstd, magstd = readstandard(coordinatefile)
     img = re.sub('\n', '', img)
 #    correctcard(img)
     hdr = readhdr(img)
     _ra = readkey3(hdr, 'RA')
     _dec = readkey3(hdr, 'DEC')
-    dd = arccos(
-        sin(_dec * scal) * sin(decstd * scal) + cos(_dec * scal) * cos(decstd * scal) * cos((_ra - rastd) * scal)) * (
-             (180 / pi) * 3600)
+    dd = np.arccos(
+        np.sin(_dec * scal) * np.sin(decstd * scal) + np.cos(_dec * scal) * np.cos(decstd * scal) * np.cos((_ra - rastd) * scal)) * (
+             (180 / np.pi) * 3600)
     if min(dd) < 5200:
-        floyds.util.updateheader(img, 0, {'OBJECT': [std[argmin(dd)], 'Original target.']})
-        aa, bb, cc = rastd[argmin(dd)], decstd[argmin(dd)], std[argmin(dd)]
+        floyds.util.updateheader(img, 0, {'OBJECT': [std[np.argmin(dd)], 'Original target.']})
+        aa, bb, cc = rastd[np.argmin(dd)], decstd[np.argmin(dd)], std[np.argmin(dd)]
     else:
         aa, bb, cc = '', '', ''
     return aa, bb, cc
@@ -816,8 +763,6 @@ def correctobject(img, coordinatefile):
 
 ##################################################################################################
 def archivingtar(outputlist, nametar):
-    import os, string, re
-    from floyds.util import delete
 
     print('### making a tar with pre-reduced frames ........ please wait')
     stringa = ' '.join(outputlist)
@@ -828,7 +773,6 @@ def archivingtar(outputlist, nametar):
 
 #################################################################
 def repstringinfile(filein, fileout, string1, string2):
-    import re
 
     f = open(filein, 'r')
     ss = f.readlines()
@@ -845,25 +789,21 @@ def repstringinfile(filein, fileout, string1, string2):
 ###################################################
 
 def StoN(img, ran=50):
-    import floyds
-    from floyds.util import readspectrum
-    from numpy import average, mean, sqrt, asarray
 
     xx, yy = readspectrum(img)
     sntot = []
     xxmed = []
     for j in range(2, int((xx[-1] - xx[0]) / ran) - 2):
         aa, bb = xx[0] + j * ran - int(ran / 2.), xx[0] + j * ran + int(ran / 2.)
-        ww = asarray([i for i in range(len(xx)) if ((xx[i] >= aa) & (xx[i] < bb) )])
-        snr = average(yy[ww]) / sqrt((sum(((yy[ww] - average(yy[ww]))) ** 2)) / (len(ww) - 1))
+        ww = np.asarray([i for i in range(len(xx)) if ((xx[i] >= aa) & (xx[i] < bb) )])
+        snr = np.average(yy[ww]) / np.sqrt((sum(((yy[ww] - np.average(yy[ww]))) ** 2)) / (len(ww) - 1))
         sntot.append(snr)
         xxmed.append(xx[0] + j * ran)
-    return mean(sntot)
+    return np.mean(sntot)
 
 
 ################################################
 def spectraresolution(img):
-    from floyds import readkey3, readhdr
 
     hdr = readhdr(img)
     _instrume = readkey3(hdr, 'instrume')
@@ -888,10 +828,6 @@ def spectraresolution(img):
 
 ##################################################
 def classifyfast(fitsfile, program='snid'):
-    import floyds
-    import re, os, sys, string
-    from numpy import array, argsort
-    from pyraf import iraf
 
     iraf.onedspec(_doprint=0)
     imgasci = re.sub('.fits', '.asci', fitsfile)
@@ -914,7 +850,7 @@ def classifyfast(fitsfile, program='snid'):
                 bb[str.split(i)[0]] = {'all': str.split(i)[1:], 'frac': str.split(i)[2],
                                           'phase': str.split(i)[6], 'red': str.split(i)[3]}
         _type, _frac, _phase = [], [], []
-        for ii in argsort(array([bb[i]['frac'] for i in bb.keys()], float))[::-1]:
+        for ii in np.argsort(np.array([bb[i]['frac'] for i in bb.keys()], float))[::-1]:
             _type.append(bb.keys()[ii])
             _frac.append(float(bb[bb.keys()[ii]]['frac']))
             _phase.append(float(bb[bb.keys()[ii]]['phase']))
@@ -952,21 +888,15 @@ def classifyfast(fitsfile, program='snid'):
 ################################################
 
 def spectraresolution2(img0, ww=25):
-    from astropy.io import fits
-    import os, string, re, sys
-    import floyds
-    from numpy import arange, mean, compress, array
-    from numpy import interp as ninterp
-    from pyraf import iraf
 
     iraf.onedspec(_doprint=0)
 
     id = 'database/id' + re.sub('.fits', '', img0)
     img = re.sub('arc_', '', img0)
     data, hdr = fits.getdata(img0, 0, header=True)
-    crvals = floyds.util.readkey3(hdr, 'CRVAL1')
-    cds = floyds.util.readkey3(hdr, 'CD1_1')
-    xx = arange(len(data))
+    crvals = readkey3(hdr, 'CRVAL1')
+    cds = readkey3(hdr, 'CD1_1')
+    xx = np.arange(len(data))
     yy = data
     aa = crvals + (xx) * cds
     #   read identified lines from id file
@@ -986,10 +916,10 @@ def spectraresolution2(img0, ww=25):
     if len(ff) > 0:
         for i in ff:    lines.append(float(str.split(i)[2]))
         print(lines)
-        lines = compress((aa[0] < array(lines)) & (array(lines) < aa[-1]), array(lines))
+        lines = np.compress((aa[0] < np.array(lines)) & (np.array(lines) < aa[-1]), np.array(lines))
         cursor = ''
-        yym = ninterp(lines - ww, aa, yy)
-        yyp = ninterp(lines + ww, aa, yy)
+        yym = np.interp(lines - ww, aa, yy)
+        yyp = np.interp(lines + ww, aa, yy)
         for i in range(0, len(lines)):
             cursor = cursor + str(lines[i] - ww) + '  ' + str(yym[i]) + '  1   k\n'
             cursor = cursor + str(lines[i] + ww) + '  ' + str(yyp[i]) + '  1   k\n'
@@ -997,13 +927,12 @@ def spectraresolution2(img0, ww=25):
         ff = open('_cursor', 'w')
         ff.write(cursor)
         ff.close()
-        from pyraf import iraf
 
         aaa = iraf.noao.onedspec.bplot(img0, cursor='_cursor', spec2='', new_ima='', overwri='yes', Stdout=1)
         fw = []
         for i in aaa[1:]: fw.append(float(str.split(str.split(i, '=')[-1], 'k')[0]))
         floyds.util.delete('_cursor')
-        res = (aa[0] + ((aa[-1] - aa[0]) / 2)) / mean(fw)
+        res = (aa[0] + ((aa[-1] - aa[0]) / 2)) / np.mean(fw)
     else:
         res = 9999
     return res
@@ -1012,35 +941,29 @@ def spectraresolution2(img0, ww=25):
 ##################################################
 
 def spectraresolution3(img0, ww=25):
-    from astropy.io import fits
-    import os, string, re, sys
-    import floyds
-    from numpy import arange, mean, compress, array, median
-    from numpy import interp as ninterp
-    from pyraf import iraf
 
     iraf.onedspec(_doprint=0)
 
     img = re.sub('arc_', '', img0)
     data, hdr = fits.getdata(img0, 0, header=True)
-    crvals = floyds.util.readkey3(hdr, 'CRVAL1')
-    cds = floyds.util.readkey3(hdr, 'CD1_1')
-    xx = arange(len(data))
+    crvals = readkey3(hdr, 'CRVAL1')
+    cds = readkey3(hdr, 'CD1_1')
+    xx = np.arange(len(data))
     yy = data
     aa = crvals + (xx) * cds
 
-    maxtab, mintab = floyds.util.peakdet(yy, median(yy) * 10)
-    if len(maxtab) <= 0:      maxtab, mintab = floyds.util.peakdet(yy, median(yy))
+    maxtab, mintab = floyds.util.peakdet(yy, np.median(yy) * 10)
+    if len(maxtab) <= 0:      maxtab, mintab = floyds.util.peakdet(yy, np.median(yy))
     if len(maxtab) <= 0:
         lines = []
     else:
         lines0, b = zip(*maxtab)
-        lines = crvals + (array(lines0)) * cds
+        lines = crvals + (np.array(lines0)) * cds
     if len(lines) > 0:
-        lines = compress((aa[0] < array(lines)) & (array(lines) < aa[-1]), array(lines))
+        lines = np.compress((aa[0] < np.array(lines)) & (np.array(lines) < aa[-1]), np.array(lines))
         cursor = ''
-        yym = ninterp(lines - ww, aa, yy)
-        yyp = ninterp(lines + ww, aa, yy)
+        yym = np.interp(lines - ww, aa, yy)
+        yyp = np.interp(lines + ww, aa, yy)
         for i in range(0, len(lines)):
             cursor = cursor + str(lines[i] - ww) + '  ' + str(yym[i]) + '  1   k\n'
             cursor = cursor + str(lines[i] + ww) + '  ' + str(yyp[i]) + '  1   k\n'
@@ -1048,13 +971,12 @@ def spectraresolution3(img0, ww=25):
         ff = open('_cursor', 'w')
         ff.write(cursor)
         ff.close()
-        from pyraf import iraf
 
         aaa = iraf.noao.onedspec.bplot(img0, cursor='_cursor', spec2='', new_ima='', overwri='yes', Stdout=1)
         fw = []
         for i in aaa[1:]: fw.append(float(str.split(str.split(i, '=')[-1], 'k')[0]))
         floyds.util.delete('_cursor')
-        res = (aa[0] + ((aa[-1] - aa[0]) / 2)) / mean(fw)
+        res = (aa[0] + ((aa[-1] - aa[0]) / 2)) / np.mean(fw)
     else:
         res = 9999
     return res
@@ -1063,8 +985,6 @@ def spectraresolution3(img0, ww=25):
 ##################################################
 
 def peakdet(v, delta, x=None):
-    from numpy import NaN, Inf, arange, isscalar, array, asarray
-
     """
     Converted from MATLAB script at http://billauer.co.il/peakdet.html
     Returns two arrays
@@ -1090,18 +1010,18 @@ def peakdet(v, delta, x=None):
     maxtab = []
     mintab = []
     if x is None:
-        x = arange(len(v))
-    v = asarray(v)
+        x = np.arange(len(v))
+    v = np.asarray(v)
     if len(v) != len(x):
         sys.exit('Input vectors v and x must have same length')
-    if not isscalar(delta):
+    if not np.isscalar(delta):
         sys.exit('Input argument delta must be a scalar')
     if delta <= 0:
         sys.exit('Input argument delta must be positive')
-    mn, mx = Inf, -Inf
-    mnpos, mxpos = NaN, NaN
+    mn, mx = np.inf, -np.inf
+    mnpos, mxpos = np.nan, np.nan
     lookformax = True
-    for i in arange(len(v)):
+    for i in np.arange(len(v)):
         this = v[i]
         if this > mx:
             mx = this
@@ -1121,18 +1041,16 @@ def peakdet(v, delta, x=None):
                 mx = this
                 mxpos = x[i]
                 lookformax = True
-    return array(maxtab), array(mintab)
+    return np.array(maxtab), np.array(mintab)
 
 ######################################################################
 
 def mjdtoday():
-  from datetime import datetime
-  today = datetime.utcnow()
-  mjd0  = datetime(1858,11,17)
+  today = datetime.datetime.utcnow()
+  mjd0  = datetime.datetime(1858,11,17)
   mjd = (today - mjd0).days
   return mjd
 
 def to_safe_filename(unsafe_string):
-    import string
     valid_filename_characters = "-_.(){letters}{numbers}".format(letters=string.ascii_letters, numbers=string.digits)
     return ''.join(character for character in unsafe_string if character in valid_filename_characters)
